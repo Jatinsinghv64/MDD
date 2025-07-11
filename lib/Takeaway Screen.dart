@@ -1258,51 +1258,54 @@ class _TakeAwayCartScreenState extends State<TakeAwayCartScreen> {
                 ),
 
                 // Car Details Form (animated)
-                if (_selectedPickupType == 'by_car')
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Column(
-                      children: [
-                        const Divider(height: 1),
-                        const SizedBox(height: 16),
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 8),
-                            child: Text(
-                              'CAR DETAILS',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey,
+                // Added SingleChildScrollView here to prevent pixel overflow
+                if (_selectedPickupType == 'by_car') // Conditional rendering of the scroll view
+                  SingleChildScrollView(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Column(
+                        children: [
+                          const Divider(height: 1),
+                          const SizedBox(height: 16),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 8),
+                              child: Text(
+                                'CAR DETAILS',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildStyledTextField(
-                          controller: _carNumberController,
-                          label: 'Car Number Plate',
-                          icon: Icons.confirmation_number,
-                          isRequired: true,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildStyledTextField(
-                          controller: _carModelController,
-                          label: 'Car Model',
-                          icon: Icons.directions_car,
-                          isRequired: true,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildStyledTextField(
-                          controller: _carColorController,
-                          label: 'Car Color',
-                          icon: Icons.color_lens,
-                          isRequired: true,
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          _buildStyledTextField(
+                            controller: _carNumberController,
+                            label: 'Car Number Plate',
+                            icon: Icons.confirmation_number,
+                            isRequired: true,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildStyledTextField(
+                            controller: _carModelController,
+                            label: 'Car Model',
+                            icon: Icons.directions_car,
+                            isRequired: true,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildStyledTextField(
+                            controller: _carColorController,
+                            label: 'Car Color',
+                            icon: Icons.color_lens,
+                            isRequired: true,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -1312,6 +1315,7 @@ class _TakeAwayCartScreenState extends State<TakeAwayCartScreen> {
       ),
     );
   }
+
 
   Widget _buildStyledTextField({
     required TextEditingController controller,

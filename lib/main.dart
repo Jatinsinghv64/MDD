@@ -23,23 +23,29 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Check if it's the first launch
-  final prefs = await SharedPreferences.getInstance();
-  final bool isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
-
-  runApp(MyApp(isFirstLaunch: isFirstLaunch));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
-  final bool isFirstLaunch;
-
-  const MyApp({Key? key, required this.isFirstLaunch}) : super(key: key);
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
+  final Future<bool> _initializationFuture = _initializeDependencies();
+
+  static Future<bool> _initializeDependencies() async {
+    // Perform any other asynchronous initialization here
+    // For example, pre-loading some essential data or checking network
+    final prefs = await SharedPreferences.getInstance();
+    final bool isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
+    // You can store isFirstLaunch in a global state or pass it down
+    // For simplicity, we'll just return it and handle in the builder
+    return isFirstLaunch;
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -49,50 +55,101 @@ class _MyAppState extends State<MyApp> {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
         fontFamily: 'Inter',
-        // Add bottom navigation theme if needed
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           selectedItemColor: AppColors.primaryBlue,
           unselectedItemColor: Colors.grey,
         ),
       ),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
+      home: FutureBuilder<bool>(
+        future: _initializationFuture,
         builder: (context, snapshot) {
-          // If connection is waiting, show a loading indicator
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-
-          // If there's an error, show an error message
-          if (snapshot.hasError) {
+            // While waiting for initialization, show the splash screen
+            return const SplashScreen();
+          } else if (snapshot.hasError) {
+            // If there's an error during initialization
             return Scaffold(
               body: Center(
-                child: Text('Error: ${snapshot.error}'),
+                child: Text('Error initializing app: ${snapshot.error}'),
               ),
             );
-          }
-
-          // If there's an authenticated user
-          if (snapshot.hasData && snapshot.data != null) {
-            // Removed ChangeNotifierProvider as CartService is a singleton
-            return const MainApp();
           } else {
-            // No authenticated user
-            if (widget.isFirstLaunch) {
-              return const WelcomeScreen();
-            } else {
-              return const LoginScreen();
-            }
+            // Initialization complete, proceed with authentication check
+            final bool isFirstLaunch = snapshot.data ?? true;
+            return StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, authSnapshot) {
+                if (authSnapshot.connectionState == ConnectionState.waiting) {
+                  // Still show a loading indicator if auth state is resolving
+                  return const SplashScreen(); // Or a simpler loading indicator
+                }
+
+                if (authSnapshot.hasError) {
+                  return Scaffold(
+                    body: Center(
+                      child: Text('Error: ${authSnapshot.error}'),
+                    ),
+                  );
+                }
+
+                if (authSnapshot.hasData && authSnapshot.data != null) {
+                  return const MainApp();
+                } else {
+                  if (isFirstLaunch) {
+                    return const WelcomeScreen();
+                  } else {
+                    return const LoginScreen();
+                  }
+                }
+              },
+            );
           }
         },
       ),
     );
   }
 }
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primaryBlue, // Or any background color you prefer
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Your app logo or icon
+            Icon(
+              Icons.restaurant_menu, // Example icon
+              size: 100,
+              color: AppColors.white,
+            ),
+            const SizedBox(height: 24),
+            // App name or slogan
+            Text(
+              'Mitra Da Dhaba',
+              style: AppTextStyles.headline1.copyWith(color: AppColors.white),
+            ),
+            const SizedBox(height: 48),
+            // Loading indicator
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading your delicious experience...',
+              style: AppTextStyles.bodyText1.copyWith(color: AppColors.white.withOpacity(0.8)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class MainApp extends StatefulWidget {
   const MainApp({Key? key}) : super(key: key);
 
@@ -103,7 +160,6 @@ class MainApp extends StatefulWidget {
 class _MainAppState extends State<MainApp> {
   int _currentIndex = 0;
 
-  // Create controllers/preserved state for each tab
   final List<Widget> _screens = [
     const HomeScreen(),
     const OrdersScreen(),
@@ -119,45 +175,138 @@ class _MainAppState extends State<MainApp> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primaryBlue,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.3),
+              spreadRadius: 2,
+              blurRadius: 10,
+              offset: const Offset(0, -3),
+            ),
+          ],
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.newspaper),
-            label: 'Orders',
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) => setState(() => _currentIndex = index),
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: AppColors.primaryBlue,
+            unselectedItemColor: Colors.grey[600],
+            backgroundColor: Colors.white,
+            elevation: 0, // Using custom shadow instead
+            selectedFontSize: 12,
+            unselectedFontSize: 12,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+            ),
+            items: [
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _currentIndex == 0
+                        ? AppColors.primaryBlue.withOpacity(0.2)
+                        : Colors.transparent,
+                  ),
+                  child: Icon(
+                    _currentIndex == 0 ? Icons.home : Icons.home_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _currentIndex == 1
+                        ? AppColors.primaryBlue.withOpacity(0.2)
+                        : Colors.transparent,
+                  ),
+                  child: Icon(
+                    _currentIndex == 1 ? Icons.newspaper : Icons.newspaper_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: 'Orders',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _currentIndex == 2
+                        ? AppColors.primaryBlue.withOpacity(0.2)
+                        : Colors.transparent,
+                  ),
+                  child: Icon(
+                    _currentIndex == 2 ? Icons.person : Icons.person_outline,
+                    size: 24,
+                  ),
+                ),
+                label: 'Profile',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _currentIndex == 3
+                        ? AppColors.primaryBlue.withOpacity(0.2)
+                        : Colors.transparent,
+                  ),
+                  child: Icon(
+                    _currentIndex == 3
+                        ? Icons.takeout_dining
+                        : Icons.takeout_dining_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: 'Take Away',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _currentIndex == 4
+                        ? AppColors.primaryBlue.withOpacity(0.2)
+                        : Colors.transparent,
+                  ),
+                  child: Icon(
+                    _currentIndex == 4 ? Icons.restaurant : Icons.restaurant_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: 'Dine In',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.takeout_dining),
-            label: 'Take Away',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant),
-            label: 'Dine In',
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-
-
-
 class AppColors {
-  static const Color primaryBlue = Color(0xFF2196F3); // A standard blue
-  static const Color accentBlue = Color(0xFF64B5F6); // Lighter blue
+  static const Color primaryBlue = Color(0xFF2196F3);
+  static const Color accentBlue = Color(0xFF64B5F6);
   static const Color white = Colors.white;
   static const Color lightGrey = Color(0xFFF5F5F5);
   static const Color darkGrey = Color(0xFF333333);
@@ -184,6 +333,8 @@ class AppTextStyles {
     color: AppColors.white,
   );
 }
+
+
 
 class Address {
   final firestore.GeoPoint geolocation; // Use aliased GeoPoint
